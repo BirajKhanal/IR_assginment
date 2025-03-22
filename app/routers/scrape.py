@@ -1,11 +1,11 @@
-import random
 import time
-from typing import Optional, cast
+from typing import cast
 
 import cloudscraper
 from bs4 import BeautifulSoup, Tag
 from fastapi import APIRouter, Depends
-from sqlmodel import Session
+from sqlalchemy.sql import text
+from sqlmodel import Session, delete
 
 from app.database import get_db  # Import session dependency
 from app.models import Publication  # Import Publication model
@@ -14,8 +14,13 @@ router = APIRouter(
     tags=["Scraper"],
 )
 
+BASE_URL = "https://pureportal.coventry.ac.uk"
+URLS = [
+    "/en/organisations/fbl-school-of-economics-finance-and-accounting/publications/"
+]
 
-def scrape_page(base_url: str, url: str, session: Session) -> Optional[str]:
+
+def scrape_page(base_url: str, url: str):
     """
     Scrapes a single page and inserts data into the database.
     """
@@ -25,13 +30,15 @@ def scrape_page(base_url: str, url: str, session: Session) -> Optional[str]:
 
         soup = BeautifulSoup(response.text, "html.parser")
 
+        publications = []
+
         for div in soup.find_all("div", class_="result-container"):
             div = cast(Tag, div)
 
             title_tag = div.find("h3", class_="title")
             link_tag = div.find("a")
-            authors_tags = div.find_all("a", class_="link person")
             year_tag = div.find("span", class_="date")
+            authors_tags = div.find_all("a", class_="link person")
 
             title = title_tag.get_text(strip=True) if title_tag else "No Title"
             link = (
@@ -39,20 +46,35 @@ def scrape_page(base_url: str, url: str, session: Session) -> Optional[str]:
                 if isinstance(link_tag, Tag) and "href" in link_tag.attrs
                 else "No URL"
             )
-            authors = (
-                [author.text.strip() for author in authors_tags]
-                if authors_tags
-                else ["No Authors"]
-            )
             year = year_tag.text.strip() if year_tag else "No Year"
-
-            # Insert into database
-            publication = Publication(
-                title=title, link=link, authors=authors, year=year
+            authors = (
+                [
+                    {
+                        "name": author.text.strip(),
+                        "link": (
+                            str(author["href"])
+                            if isinstance(author, Tag)
+                            and "href" in author.attrs
+                            else ""
+                        ),
+                    }
+                    for author in authors_tags
+                ]
+                if authors_tags
+                else []
             )
-            session.add(publication)
 
-        session.commit()  # Save all changes
+            if not authors:
+                continue
+
+            publications.append(
+                {
+                    "title": title,
+                    "link": link,
+                    "authors": authors,
+                    "year": year,
+                }
+            )
 
         # Get next page link
         next_tag = soup.find("a", class_="nextLink")
@@ -62,29 +84,63 @@ def scrape_page(base_url: str, url: str, session: Session) -> Optional[str]:
             else ""
         )
 
-        return next_page
+        return publications, next_page
 
     except Exception as e:
         print(f"Error scraping data: {e}")
-        return None
+        return None, None
+
+
+def store_scraped_data(session: Session, publications: list[dict]):
+    """
+    Clears the table and inserts the data to remove duplicates. Also, updates the search vector.
+    """
+    # Delete all existing records
+    session.exec(delete(Publication))  # pyright: ignore
+
+    # Insert new records
+    new_records = [Publication(**pub) for pub in publications]
+    session.add_all(new_records)
+    session.commit()
+
+    # Update search vector
+    session.exec(
+        text(
+            "UPDATE publication SET search_vector = to_tsvector('english', title)"
+        )  # pyright: ignore
+    )
+    session.commit()
 
 
 @router.post("/scrape/")
 def scrape_publications(
-    base_url: str, url: str, session: Session = Depends(get_db)
+    base_url: str = BASE_URL,
+    url: str = URLS[0],
+    session: Session = Depends(get_db),
 ):
     """
     API endpoint to start scraping.
     """
+    all_publications = []
+
     while url:
         print(f"Scraping: {url}")
-        next_url = scrape_page(base_url, url, session)
+        scraped_data, next_url = scrape_page(base_url, url)
+
+        if scraped_data:
+            all_publications.extend(scraped_data)
 
         if next_url is None:
             print("No more page to scrape.")
             return
 
         url = next_url
-        time.sleep(random.uniform(1.5, 3))  # Prevent rate-limiting
+        time.sleep(2)  # Prevent rate-limiting
 
-    return {"message": "Scraping completed successfully!"}
+    if all_publications:
+        store_scraped_data(session, all_publications)
+
+    return {
+        "message": "Scraping completed successfully!",
+        "total_records": len(all_publications),
+    }

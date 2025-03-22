@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.database import create_db_and_tables
-from app.routers import scrape
+from app.routers import prediction, scrape, search
 
 
 @asynccontextmanager
@@ -14,11 +14,9 @@ async def lifespan(app: FastAPI):
     yield
 
 
+# app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None)
 app = FastAPI(lifespan=lifespan)
 
-BASE_URL = "https://pureportal.coventry.ac.uk"
-URLS = [
-    "/en/organisations/fbl-school-of-economics-finance-and-accounting/publications/"
-]
-
 app.include_router(scrape.router)
+app.include_router(search.router)
+app.include_router(prediction.router)
