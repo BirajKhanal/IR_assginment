@@ -72,7 +72,7 @@ async def classify_text(request: Request, text: str = Form(...)):
             {
                 "request": request,
                 "classification": prediction,
-                "accuracy": round(float(confidence), 4) * 100,
+                "accuracy": round(float(confidence * 100), 2),
                 "probabilities": dict(zip(model.classes_, probs)),
             },
         )
