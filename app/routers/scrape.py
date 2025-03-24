@@ -4,14 +4,14 @@ from typing import cast
 import cloudscraper
 from bs4 import BeautifulSoup, Tag
 from fastapi import APIRouter, Depends
-from sqlalchemy.sql import text
-from sqlmodel import Session, delete
+from sqlmodel import Session
 
-from app.database import get_db  # Import session dependency
-from app.models import Publication  # Import Publication model
+from app.database import get_db
+from app.models import Publication
+from app.services import store_scraped_data
 
 router = APIRouter(
-    tags=["Scraper"],
+    tags=["Task 1"],
 )
 
 BASE_URL = "https://pureportal.coventry.ac.uk"
@@ -91,28 +91,7 @@ def scrape_page(base_url: str, url: str):
         return None, None
 
 
-def store_scraped_data(session: Session, publications: list[dict]):
-    """
-    Clears the table and inserts the data to remove duplicates. Also, updates the search vector.
-    """
-    # Delete all existing records
-    session.exec(delete(Publication))  # pyright: ignore
-
-    # Insert new records
-    new_records = [Publication(**pub) for pub in publications]
-    session.add_all(new_records)
-    session.commit()
-
-    # Update search vector
-    session.exec(
-        text(
-            "UPDATE publication SET search_vector = to_tsvector('english', title)"
-        )  # pyright: ignore
-    )
-    session.commit()
-
-
-@router.post("/scrape/")
+@router.post("/scrape")
 def scrape_publications(
     base_url: str = BASE_URL,
     url: str = URLS[0],
@@ -138,7 +117,9 @@ def scrape_publications(
         time.sleep(2)  # Prevent rate-limiting
 
     if all_publications:
-        store_scraped_data(session, all_publications)
+        store_scraped_data(
+            session, Publication, all_publications, search_field="search_vector"
+        )
 
     return {
         "message": "Scraping completed successfully!",

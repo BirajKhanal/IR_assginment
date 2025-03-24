@@ -26,3 +26,9 @@ class Publication(SQLModel, table=True):
     )
 
     model_config = {"arbitrary_types_allowed": True}  # pyright: ignore
+
+
+class Prediction(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    content: str
+    category: str

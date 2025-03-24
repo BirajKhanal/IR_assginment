@@ -10,11 +10,13 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Publication
 
-router = APIRouter()
+router = APIRouter(
+    tags=["Task 1"],
+)
 templates = Jinja2Templates(directory="app/templates")
 
 
-@router.get("/task1/", response_class=HTMLResponse)
+@router.get("/task1", response_class=HTMLResponse)
 def search_publications(
     request: Request,
     query: str = Query("", alias="query", description="Search query"),
