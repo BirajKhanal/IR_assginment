@@ -16,7 +16,7 @@ router = APIRouter(
 templates = Jinja2Templates(directory="app/templates")
 
 
-@router.get("/task1", response_class=HTMLResponse)
+@router.get("/task1", response_class=HTMLResponse, include_in_schema=False)
 def search_publications(
     request: Request,
     query: str = Query("", alias="query", description="Search query"),

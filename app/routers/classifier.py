@@ -17,7 +17,7 @@ class QueryInput(BaseModel):
     text: str
 
 
-@router.get("/task2")
+@router.get("/task2", include_in_schema=False)
 async def show_classification_page(request: Request):
     """Renders the classification page."""
     return templates.TemplateResponse(
@@ -25,7 +25,7 @@ async def show_classification_page(request: Request):
     )
 
 
-@router.post("/task2")
+@router.post("/task2", include_in_schema=False)
 async def classify_text(request: Request, text: str = Form(...)):
     """Classifies the input text and returns classification + accuracy."""
 
