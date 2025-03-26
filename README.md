@@ -69,7 +69,7 @@ Before running the project, ensure you have the following installed:
   - **Restore the Database from Dump:** Assuming you have the database dump file (dump.sql), use the following command to restore it:
     
   ```bash
-  psql -U <username> -d <database-name> -f dump.sql
+  psql -U <username> -d <database-name> --clean -f dump.sql
   ```
 
 ## 3. Running the Application

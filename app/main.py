@@ -1,5 +1,7 @@
 from contextlib import asynccontextmanager
 
+import httpx
+from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -19,6 +21,29 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 templates = Jinja2Templates(directory="app/templates")
+
+# HTTP client for scraping requests
+http_client = httpx.AsyncClient()
+
+# Background scheduler setup
+scheduler = BackgroundScheduler()
+
+
+# Scrape job triggered by scheduler
+@scheduler.scheduled_job("cron", day=1, hour=0, minute=0, second=0)
+async def monthly_scrape_job():
+    """Triggers /scrape endpoint once a month."""
+    async with http_client as client:
+        response = await client.get("http://127.0.0.1:8000/scrape")
+        print(
+            "Scrape triggered!"
+            if response.status_code == 200
+            else f"Error: {response.status_code}"
+        )
+
+
+# Start the scheduler
+scheduler.start()
 
 
 app.include_router(scrape.router)
