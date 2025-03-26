@@ -56,6 +56,7 @@ async def classify_text(request: Request, text: str = Form(...)):
                 {
                     "request": request,
                     "error": "Input text contains no known words.",
+                    "text": text,
                 },
             )
 
@@ -74,9 +75,15 @@ async def classify_text(request: Request, text: str = Form(...)):
                 "classification": prediction,
                 "accuracy": round(float(confidence * 100), 2),
                 "probabilities": dict(zip(model.classes_, probs)),
+                "text": text,
             },
         )
     except Exception as e:
         return templates.TemplateResponse(
-            "classification.html", {"request": request, "error": str(e)}
+            "classification.html",
+            {
+                "request": request,
+                "error": str(e),
+                "text": text,
+            },
         )

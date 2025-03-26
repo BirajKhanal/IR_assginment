@@ -26,6 +26,16 @@
             margin-bottom: 20px;
         }
 
+        .searched-text {
+            font-size: 16px;
+            color: #555;
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 15px;
+            text-align: left;
+        }
+
 
         .classification-result {
             margin-top: 20px;
@@ -64,7 +74,7 @@
 </head>
 <body>
     <div class="container">
-        <h2 class="mb-4 text-center">Text Classification</h2>
+        <h2 class="mb-4 text-center">Subject Classification</h2>
 
         <!-- Classification Form -->
         <form action="/task2" method="post" class="search-box">
@@ -77,8 +87,12 @@
         {% endif %}
 
         {% if classification %}
+            <div class="searched-text">
+                {{ text }}
+            </div>
+
             <div class="classification-result">
-                <h4>Classification Result:</h4>
+                <h4>Classification Result</h4>
                 <p><strong>Class:</strong> {{ classification }}</p>
                 <p><strong>Accuracy:</strong> {{ accuracy }} %</p>
             </div>
